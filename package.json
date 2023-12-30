@@ -1,6 +1,7 @@
 {
   "dependencies": {
     "axios": "^1.6.3",
+    "bmp-js": "^0.1.0",
     "chalk": "^3.0.0",
     "querystring": "^0.2.1",
     "yamljs": "^0.3.0"
