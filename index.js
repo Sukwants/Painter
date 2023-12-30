@@ -60,17 +60,16 @@ async function updatePoints() {
 
 async function paint(uid, token, paste) {
     let x, y, color;
-    const interval = setInterval(function () {
-        const pt = getPoint();
-        if (pt != null) {
-            x = pt.x;
-            y = pt.y;
-            color = pt.color;
-            clearInterval(interval);
-        }
-    },100)
+    const pt = getPoint();
+    if (pt === null) {
+        setTimeout(() => { paint(uid, token, paste); }, 100);
+        return;
+    }
+    x = pt.x;
+    y = pt.y;
+    color = pt.color;
     const res = await axios.post(`${site}/paint`, qs.stringify({
-        x: '0', y: '0', color: '000000',
+        x: parseInt(x), y: parseInt(y), color: color,
         uid: uid.toString(), token: token
     }));
     if (res.data.status == 200) {
@@ -96,8 +95,6 @@ async function main() {
     const bmpData = fs.readFileSync('picture.bmp');
     const bmpImage = bmp.decode(bmpData);
 
-    // console.log(bmpImage);
-
     w = bmpImage.width;
     h = bmpImage.height;
 
@@ -105,8 +102,7 @@ async function main() {
         pic[i] = [];
         for (let j = 0; j < h; j++) {
             const index = j * w + i;
-            pic[i][j] = bmpImage.data[index * 4 + 1].toString(16).padStart(2, '0') + bmpImage.data[index * 4 + 2].toString(16).padStart(2, '0') + bmpImage.data[index * 4 + 3].toString(16).padStart(2, '0');
-            // console.log(i + ' ' + j + ' ' + pic[i][j]);
+            pic[i][j] = bmpImage.data[index * 4 + 3].toString(16).padStart(2, '0') + bmpImage.data[index * 4 + 2].toString(16).padStart(2, '0') + bmpImage.data[index * 4 + 1].toString(16).padStart(2, '0');
         }
     }
 
