@@ -26,7 +26,9 @@ let waitlist = [], x = 0, y = 0, w = 0, h = 0, pic = [];
 function getPoint() {
     if (waitlist.length == 0) return null;
     const id = parseInt(Math.floor(Math.random() * waitlist.length));
-    return waitlist[id];
+    const res = waitlist[id];
+    waitlist[id] = null;
+    return res;
 }
 
 function resolve(code) {
