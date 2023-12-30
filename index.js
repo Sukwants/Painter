@@ -41,49 +41,55 @@ function resolve(code) {
 }
 
 async function updatePoints() {
-    const res = await axios.get(`${site}/board`);
-    if (res.status != 200) {
-        console.log(chalk.bold(chalk.red('[Error]')), chalk.bold(`Status code ${res.status}:`), res.data);
-        setTimeout(() => { updatePoints(); }, 1000);
-    } else {
-        const board = resolve(res.data);
-        const WaitList = [];
-        for (let i = 0; i < w; i++) {
-            for (let j = 0; j < h; j++) {
-                if (pic[i][j] != 'gggggg' && pic[i][j] != board[i + x][j + y]) {
-                    WaitList.push({ x: i + x, y: j + y, color: pic[i][j] });
+    try {
+        const res = await axios.get(`${site}/board`);
+        if (res.status != 200) {
+            console.log(chalk.bold(chalk.red('[Error]')), chalk.bold(`Status code ${res.status}:`), res.data);
+            setTimeout(() => { updatePoints(); }, 1000);
+        } else {
+            const board = resolve(res.data);
+            const WaitList = [];
+            for (let i = 0; i < w; i++) {
+                for (let j = 0; j < h; j++) {
+                    if (pic[i][j] != 'gggggg' && pic[i][j] != board[i + x][j + y]) {
+                        WaitList.push({ x: i + x, y: j + y, color: pic[i][j] });
+                    }
                 }
             }
+            waitlist = WaitList;
+            setTimeout(() => { updatePoints(); }, 100);
         }
-        waitlist = WaitList;
-        setTimeout(() => { updatePoints(); }, 100);
     }
+    catch (error) { setTimeout(() => { updatePoints(); }, 1000); }
 }
 
 async function paint(uid, token, paste) {
-    let x, y, color;
-    const pt = getPoint();
-    if (pt === null) {
-        setTimeout(() => { paint(uid, token, paste); }, 100);
-        return;
-    }
-    x = pt.x;
-    y = pt.y;
-    color = pt.color;
-    const res = await axios.post(`${site}/paint`, qs.stringify({
-        x: parseInt(x), y: parseInt(y), color: color,
-        uid: uid.toString(), token: token
-    }));
-    if (res.data.status == 200) {
-        console.log(chalk.bold(chalk.green('[Paint]')), chalk.bold(`${uid}:`), `Painted #${color} at (${x}, ${y}).`);
-    } else {
-        console.log(chalk.bold(chalk.red('[Paint]')), chalk.bold(`${uid}:`), res.data);
-        if (res.data.status == 401 && paste) {
-            token = getToken(uid, paste);
-            if (!token) return;
+    try {
+        let x, y, color;
+        const pt = getPoint();
+        if (pt === null) {
+            setTimeout(() => { paint(uid, token, paste); }, 100);
+            return;
         }
+        x = pt.x;
+        y = pt.y;
+        color = pt.color;
+        const res = await axios.post(`${site}/paint`, qs.stringify({
+            x: parseInt(x), y: parseInt(y), color: color,
+            uid: uid.toString(), token: token
+        }));
+        if (res.data.status == 200) {
+            console.log(chalk.bold(chalk.green('[Paint]')), chalk.bold(`${uid}:`), `Painted #${color} at (${x}, ${y}).`);
+        } else {
+            console.log(chalk.bold(chalk.red('[Paint]')), chalk.bold(`${uid}:`), res.data);
+            if (res.data.status == 401 && paste) {
+                token = getToken(uid, paste);
+                if (!token) return;
+            }
+        }
+        setTimeout(() => { paint(uid, token, paste); }, 30000);
     }
-    setTimeout(() => { paint(uid, token, paste); }, 30000);
+    catch (error) { setTimeout(() => { paint(uid, token, paste); }, 30000); }
 }
 
 async function main() {
