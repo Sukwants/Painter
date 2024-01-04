@@ -1,33 +1,19 @@
 const axios = require('axios');
+const bmp = require('bmp-js');
 const chalk = require('chalk');
+const fs = require('fs');
 const qs = require('querystring');
 const yaml = require('yamljs');
-const fs = require('fs');
-const bmp = require('bmp-js');
 
 const site = 'https://www.oi-search.com/paintboard';
-
-async function getToken(uid, paste) {
-    const res = await axios.post(`${site}/gettoken`, qs.stringify({
-        uid: uid, paste: paste
-    }));
-    console.log(uid + ' ' + paste);
-    if (res.status == 200) {
-        console.log(chalk.bold(chalk.green('[Get Token]')), chalk.bold(`${uid}:`), `Token updated to ${res.data}.`);
-        return res.data;
-    } else {
-        console.log(chalk.bold(chalk.red('[Get Token]')), chalk.bold(`${uid}:`), res.data);
-        return undefined;
-    }
-}
 
 let waitlist = [], x = 0, y = 0, w = 0, h = 0, pic = [];
 
 function getPoint() {
-    if (waitlist.length == 0) return null;
+    if (waitlist.length == 0) return {};
     const id = parseInt(Math.floor(Math.random() * waitlist.length));
     const res = waitlist[id];
-    waitlist[id] = null;
+    waitlist[id] = {};
     return res;
 }
 
@@ -43,53 +29,65 @@ function resolve(code) {
 async function updatePoints() {
     try {
         const res = await axios.get(`${site}/board`);
-        if (res.status != 200) {
-            console.log(chalk.bold(chalk.red('[Error]')), chalk.bold(`Status code ${res.status}:`), res.data);
-            setTimeout(() => { updatePoints(); }, 1000);
-        } else {
+        if (res.status == 200) {
             const board = resolve(res.data);
-            const WaitList = [];
+            let WaitList = [], correct = 0, totalNotWhite = 0, correctNotWhite = 0;
             for (let i = 0; i < w; i++) {
                 for (let j = 0; j < h; j++) {
-                    if (pic[i][j] != 'gggggg' && pic[i][j] != board[i + x][j + y]) {
+                    if (pic[i][j] != board[i + x][j + y]) {
                         WaitList.push({ x: i + x, y: j + y, color: pic[i][j] });
+                    } else {
+                        correct++;
+                        if (pic[i][j] != 'ffffff') {
+                            correctNotWhite++;
+                        }
+                    }
+                    if (pic[i][j] != 'ffffff') {
+                        totalNotWhite++;
                     }
                 }
             }
+            // if (WaitList.findIndex(x => x.color != 'ffffff') != -1) ;
+            //     WaitList = WaitList.filter(x => x.color != 'ffffff');
             waitlist = WaitList;
-            setTimeout(() => { updatePoints(); }, 100);
+            console.log(chalk.bold(chalk.green('[Get Board]')), `Success. Correct ${correct} / ${w * h}. Correct(except white) ${correctNotWhite} / ${totalNotWhite}.`);
+            setTimeout(() => { updatePoints(); }, 1000)
+        } else {
+            console.log(chalk.bold(chalk.red('[Get Board]')), `Network error ${res.status}.`);
+            setTimeout(() => { updatePoints(); }, 1000);
         }
+    } catch (error) {
+        console.log(chalk.bold(chalk.red('[Get Board]')), `Unknown error.`);
+        setTimeout(() => { updatePoints(); }, 1000);
     }
-    catch (error) { setTimeout(() => { updatePoints(); }, 1000); }
 }
 
-async function paint(uid, token, paste) {
+async function paint(uid, token) {
     try {
-        let x, y, color;
-        const pt = getPoint();
-        if (pt === null) {
-            setTimeout(() => { paint(uid, token, paste); }, 100);
+        const { x, y, color } = getPoint();
+        if (x == undefined) {
+            setTimeout(() => { paint(uid, token); }, 100);
             return;
         }
-        x = pt.x;
-        y = pt.y;
-        color = pt.color;
         const res = await axios.post(`${site}/paint`, qs.stringify({
             x: parseInt(x), y: parseInt(y), color: color,
             uid: uid.toString(), token: token
         }));
-        if (res.data.status == 200) {
-            console.log(chalk.bold(chalk.green('[Paint]')), chalk.bold(`${uid}:`), `Painted #${color} at (${x}, ${y}).`);
-        } else {
-            console.log(chalk.bold(chalk.red('[Paint]')), chalk.bold(`${uid}:`), res.data);
-            if (res.data.status == 401 && paste) {
-                token = getToken(uid, paste);
-                if (!token) return;
+        if (res.status == 200) {
+            if (res.data.status == 200) {
+                console.log(chalk.bold(chalk.green('[Paint]')), chalk.bold(`${uid}:`), `Painted #${color} at (${x}, ${y}).`);
+            } else {
+                console.log(chalk.bold(chalk.red('[Paint]')), chalk.bold(`${uid}:`), res.data.data);
             }
+            setTimeout(() => { paint(uid, token); }, 30000);
+        } else {
+            console.log(chalk.bold(chalk.red('[Paint]')), chalk.bold(`${uid}:`), `Network error ${res.status}.`);
+            setTimeout(() => { paint(uid, token); }, 1000);
         }
-        setTimeout(() => { paint(uid, token, paste); }, 30000);
+    } catch (error) {
+        console.log(chalk.bold(chalk.red('[Paint]')), chalk.bold(`${uid}:`), `Unknown error.`);
+        setTimeout(() => { paint(uid, token); }, 1000);
     }
-    catch (error) { setTimeout(() => { paint(uid, token, paste); }, 30000); }
 }
 
 async function main() {
@@ -100,7 +98,7 @@ async function main() {
 
     for (let i = 0; i < w; i++) pic[i] = [];
 
-    const bmpData = fs.readFileSync('picture.bmp');
+    const bmpData = fs.readFileSync('_picture.bmp');
     const bmpImage = bmp.decode(bmpData);
 
     w = bmpImage.width;
@@ -118,25 +116,21 @@ async function main() {
 
     await updatePoints();
 
-    console.log(chalk.bold(chalk.green('[Get Board]')));
-
-    const pasteText = fs.readFileSync('_paste.yaml', 'utf8');
-    const pasteList = yaml.parse(pasteText);
-
-    const tokenText = fs.readFileSync('_token.yaml', 'utf8');
-    const tokenList = yaml.parse(tokenText);
-
-    for (const key in pasteList) {
-        const token = await getToken(key, pasteList[key]);
-        if (token) paint(key, token, pasteList[key]);
+    const tokenText = fs.readFileSync('_tokens.yaml', 'utf8');
+    const tokenMap = yaml.parse(tokenText);
+    const tokenList = [];
+    for (const key in tokenMap) {
+        tokenList.push({ uid: key, token: tokenMap[key] });
     }
-
-
-    for (const key in tokenList) {
-        try {
-            if (pasteList[key] != null);
-        } catch (error) { paint(key, tokenList[key], null) }
-    }
+    
+    const timeInterval = 30000 / tokenList.length;
+    let start = (id) => {
+        paint(tokenList[id].uid, tokenList[id].token);
+        if (id + 1 < tokenList.length) {
+            setTimeout(() => { start(id + 1) }, timeInterval);
+        }
+    };
+    start(0);
 }
 
 main();

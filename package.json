@@ -5,5 +5,24 @@
     "chalk": "^3.0.0",
     "querystring": "^0.2.1",
     "yamljs": "^0.3.0"
-  }
+  },
+  "name": "painter",
+  "description": "A simple Node.js script for the winter paintboard.",
+  "version": "1.0.0",
+  "main": "index.js",
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sukwants/Painter.git"
+  },
+  "author": "Sukwants",
+  "contributors": ["2745518585"],
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/Sukwants/Painter/issues"
+  },
+  "homepage": "https://github.com/Sukwants/Painter#readme"
 }
